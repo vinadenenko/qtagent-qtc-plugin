@@ -7,13 +7,13 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QScrollArea>
-#include <QLineEdit>
 #include <QTextEdit>
 #include <QPushButton>
 #include <QWidget>
 #include <QTimer>
 #include <QClipboard>
 #include <QApplication>
+#include <QKeyEvent>
 
 ChatDockWidget::ChatDockWidget(QWidget *parent)
     : QDockWidget("LLM Assistant", parent)
@@ -29,8 +29,12 @@ ChatDockWidget::ChatDockWidget(QWidget *parent)
 
     scroll->setWidget(chatContainer);
 
-    input = new QLineEdit;
+    input = new QTextEdit;
+    input->setFixedHeight(70);
+    input->setAcceptRichText(false);
     input->setPlaceholderText("Ask something...");
+
+    input->installEventFilter(this);
 
     auto sendBtn = new QPushButton("Send");
 
@@ -44,18 +48,7 @@ ChatDockWidget::ChatDockWidget(QWidget *parent)
 
     setWidget(root);
 
-    connect(sendBtn, &QPushButton::clicked, this, [this]{
-        const QString text = input->text().trimmed();
-        if (text.isEmpty()) return;
-
-        input->clear();
-        addUserMessage(text);
-
-        // MOCK LLM RESPONSE
-        // QTimer::singleShot(600, this, [=]{
-        //     addAssistantMessage("Mock LLM response for:\n" + text);
-        // });
-    });
+    connect(sendBtn, &QPushButton::clicked, this, &ChatDockWidget::onSendClicked);
 
     llmManager = new LLMManager(this);
 
@@ -74,6 +67,35 @@ ChatDockWidget::ChatDockWidget(QWidget *parent)
         stopTypingAnimation();
         addAssistantMessage("Error: " + t);
     });
+}
+
+bool ChatDockWidget::eventFilter(QObject *obj, QEvent *event)
+{
+    if (obj == input && event->type() == QEvent::KeyPress) {
+        QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
+        if (keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter) {
+            if (keyEvent->modifiers() & Qt::ShiftModifier) {
+                return false; // insert newline
+            }
+            onSendClicked(); // send message
+            return true;
+        }
+    }
+    return QDockWidget::eventFilter(obj, event);
+}
+
+void ChatDockWidget::onSendClicked()
+{
+    const QString text = input->toPlainText().trimmed();
+    if (text.isEmpty()) return;
+
+    input->clear();
+    addUserMessage(text);
+
+    // MOCK LLM RESPONSE
+    // QTimer::singleShot(600, this, [=]{
+    //     addAssistantMessage("Mock LLM response for:\n" + text);
+    // });
 }
 
 void ChatDockWidget::addUserMessage(const QString &text)
