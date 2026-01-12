@@ -3,43 +3,12 @@
 #include "chatmessagewidget.h"
 #include "src/providers/ollama/ollamaprovider.h"
 
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QTextEdit>
-#include <QLineEdit>
-#include <QPushButton>
-#include <QWidget>
-
-// ChatDockWidget::ChatDockWidget(QWidget *parent)
-//     : QDockWidget("LLM Assistant", parent)
-// {
-//     auto container = new QWidget(this);
-
-//     chatView = new QTextEdit;
-//     chatView->setReadOnly(true);
-//     chatView->setPlaceholderText("LLM conversation will appear here...");
-
-//     input = new QLineEdit;
-//     input->setPlaceholderText("Ask something...");
-
-//     sendButton = new QPushButton("Send");
-
-//     auto bottomLayout = new QHBoxLayout;
-//     bottomLayout->addWidget(input);
-//     bottomLayout->addWidget(sendButton);
-
-//     auto mainLayout = new QVBoxLayout(container);
-//     mainLayout->addWidget(chatView);
-//     mainLayout->addLayout(bottomLayout);
-
-//     container->setLayout(mainLayout);
-//     setWidget(container);
-// }
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QScrollArea>
 #include <QLineEdit>
+#include <QTextEdit>
 #include <QPushButton>
 #include <QWidget>
 #include <QTimer>
@@ -75,7 +44,7 @@ ChatDockWidget::ChatDockWidget(QWidget *parent)
 
     setWidget(root);
 
-    connect(sendBtn, &QPushButton::clicked, this, [=]{
+    connect(sendBtn, &QPushButton::clicked, this, [this]{
         const QString text = input->text().trimmed();
         if (text.isEmpty()) return;
 
@@ -96,11 +65,15 @@ ChatDockWidget::ChatDockWidget(QWidget *parent)
 
     llmManager->setProvider(ollama);
 
-    connect(llmManager, &LLMManager::responseReady,
-            this, &ChatDockWidget::addAssistantMessage);
+    connect(llmManager, &LLMManager::responseReady, this, [this](const QString &t){
+        stopTypingAnimation();
+        addAssistantMessage(t);
+    });
 
-    connect(llmManager, &LLMManager::errorOccurred,
-            this, &ChatDockWidget::addAssistantMessage);
+    connect(llmManager, &LLMManager::errorOccurred, this, [this](const QString &t){
+        stopTypingAnimation();
+        addAssistantMessage("Error: " + t);
+    });
 }
 
 void ChatDockWidget::addUserMessage(const QString &text)
@@ -114,6 +87,8 @@ void ChatDockWidget::addUserMessage(const QString &text)
     chatLayout->insertLayout(chatLayout->count()-1, wrapper);
 
     llmManager->sendPrompt(text);
+
+    startTypingAnimation();
 }
 
 void ChatDockWidget::addAssistantMessage(const QString &text)
@@ -139,4 +114,21 @@ void ChatDockWidget::addAssistantMessage(const QString &text)
     wrapper->addStretch();
 
     chatLayout->insertLayout(chatLayout->count()-1, wrapper);
+}
+
+void ChatDockWidget::startTypingAnimation()
+{
+    typingIndicator_ = new TypingIndicatorWidget;
+
+    auto qwe = new QHBoxLayout;
+    qwe->addWidget(typingIndicator_);
+    qwe->addStretch();
+
+    chatLayout->insertLayout(chatLayout->count()-1, qwe);
+}
+
+void ChatDockWidget::stopTypingAnimation()
+{
+    delete typingIndicator_;
+    typingIndicator_ = nullptr;
 }

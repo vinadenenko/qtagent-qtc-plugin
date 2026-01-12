@@ -55,6 +55,7 @@ target_sources(QLP
     src/ui/chatdockwidget.h src/ui/chatdockwidget.cpp
     src/ui/chatmessagewidget.h src/ui/chatmessagewidget.cpp
     src/ui/llmoptionspage.h src/ui/llmoptionspage.cpp
+    src/ui/typingindicatorwidget.h src/ui/typingindicatorwidget.cpp
 
     src/providers/base/llmprovider.h src/providers/base/llmprovider.cpp
     src/providers/ollama/ollamaprovider.h src/providers/ollama/ollamaprovider.cpp
