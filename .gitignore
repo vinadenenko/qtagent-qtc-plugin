@@ -37,6 +37,7 @@ target_wrapper.*
 
 # QtCreator
 *.autosave
+build*
 
 # QtCreator Qml
 *.qmlproject.user
@@ -51,4 +52,12 @@ compile_commands.json
 # QtCreator local machine specific files for imported projects
 *creator.user*
 
+# Windows QtCreator files
+*.TMP
+
 *_qmlcache.qrc
+
+# CMake
+cmake-build-*/
+
+.idea/*
