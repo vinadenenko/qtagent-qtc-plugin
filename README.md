@@ -1,5 +1,65 @@
 # QLP
 
+# QtAgent — Multi-Provider AI Assistant for Qt Creator
+
+**Repository:** `qtagent-qtc-plugin`  
+**Product Name:** QtAgent  
+
+---
+
+## Overview
+
+**QtAgent** is a Qt Creator plugin that brings **AI-powered code assistance** directly into your IDE.  
+It provides a side-panel chat interface similar to JetBrains AI or Continue.dev, allowing developers to interact with **local or cloud LLMs** directly from Qt Creator.  
+
+With QtAgent, you can:
+
+- Query AI models about code, design patterns, or logic.  
+- Receive **context-aware suggestions** using your current editor content.  
+- Quickly **copy, insert, or replace** code snippets from AI responses.  
+- [In progress] Manage multiple LLM providers (Ollama, Open WebUI, Claude, Gemini, and more in the future).  
+
+---
+
+## Features
+
+- **Provider-Agnostic Architecture:** Easily switch between LLM backends.  
+- **Familiar UI:** Right-hand dock panel with messages, typing indicator, and action buttons.  
+- **Async Communication:** Non-blocking requests to keep your IDE responsive.  
+- **Settings Integration:** Configure provider URLs, models, and preferences via Qt Creator Options.  
+- **Future-Ready:** Designed to add streaming responses, conversation history, and multiple provider support.  
+
+---
+
+## Usage
+
+- Open the **QtAgent** dock panel from the right-hand side.
+- Type your query in the input box and press **Send**.
+- AI responses appear as bubbles with action buttons:
+
+  - **Copy** → copy to clipboard
+  - **Insert** → insert at cursor position
+  - **Replace** → replace current selection
+
+## Configuration
+
+Go to **Tools → Options → LLM Provider** to configure:
+
+- **Base URL** – endpoint for your LLM server  
+  (example: `http://localhost:11434`)
+- **Model** – select the AI model to use  
+  (example: `llama3`)
+
+Settings are saved and persist across sessions.
+
+### Planned improvements include:
+
+- Streaming token support
+- Multi-provider selection
+- Conversation memory and system prompts
+- Editor-aware suggestions and code fixes
+---
+
 ## How to Build
 
 Create a build directory and run
