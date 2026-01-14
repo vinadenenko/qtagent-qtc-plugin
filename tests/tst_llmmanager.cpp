@@ -7,7 +7,7 @@
 class MockProvider : public LLMProvider {
 public:
     QString name() const override { return "Mock"; }
-    void sendChatRequest(const QJsonArray &messages, bool stream) override {
+    void sendChatRequest(const QJsonArray &messages, bool stream = true, const QJsonArray &tools = QJsonArray()) override {
         if (messages.last().toObject()["role"].toString() == "user") {
             // Simulate tool call
             QJsonArray toolCalls;
