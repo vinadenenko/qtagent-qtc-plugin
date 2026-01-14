@@ -84,7 +84,18 @@ ChatDockWidget::ChatDockWidget(QWidget *parent)
     });
 
     connect(llmManager, &LLMManager::toolCallStarted, this, [this](const QString &name){
-        addAssistantMessage("🔧 Calling tool: " + name + "...");
+        addAssistantMessage("🔧 Calling tool: **" + name + "**...");
+    });
+
+    connect(llmManager, &LLMManager::toolCallFinished, this, [this](const QString &name, const QString &result){
+        if (currentAssistantBubble) {
+            QString currentText = currentAssistantBubble->text();
+            currentText += "\n\n✅ Tool **" + name + "** finished.";
+            currentAssistantBubble->setText(currentText);
+            currentAssistantBubble = nullptr;
+        } else {
+            addAssistantMessage("✅ Tool **" + name + "** finished.");
+        }
     });
 
     connect(llmManager, &LLMManager::errorOccurred, this, [this](const QString &t){

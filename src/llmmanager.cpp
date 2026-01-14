@@ -29,7 +29,17 @@ void LLMManager::setProvider(LLMProvider *provider)
         });
 
         connect(current, &LLMProvider::toolCallsReceived, this, [this](const QJsonArray &toolCalls) {
-            m_history.addMessage(Message::Assistant, m_currentAssistantResponse, QString(), toolCalls);
+            // Check if there's actual content or just tool calls
+            QString content = m_currentAssistantResponse;
+            
+            // If the model output a lot of "thought" or content before calling tools,
+            // we should probably store it.
+            m_history.addMessage(Message::Assistant, content, QString(), toolCalls);
+            
+            // We emitted content via partialResponse, so the UI should already show it.
+            // But we reset currentAssistantBubble in ChatDockWidget when a tool call finishes or starts?
+            // Actually, m_currentAssistantResponse is what we were accumulating.
+            
             m_currentAssistantResponse.clear();
             handleToolCalls(toolCalls);
         });
@@ -59,7 +69,10 @@ void LLMManager::sendChatRequest(const QString &prompt)
     // Add automatic context if history is empty or starting new interaction
     if (m_history.messageCount() == 0) {
         QString systemPrompt = "You are an AI assistant integrated into Qt Creator. "
-                               "You have access to the project files and editor through tools.";
+                               "You have access to the project files and editor through tools. "
+                               "When you need to read, write, or list files, ALWAYS use the provided tools. "
+                               "Do NOT guess or assume the content of files you have not read yet. "
+                               "Wait for the tool output before providing information based on a file.";
         
         if (m_mcpServer) {
             auto context = m_mcpServer->readResource("file://current");
@@ -67,7 +80,11 @@ void LLMManager::sendChatRequest(const QString &prompt)
             if (!contents.isEmpty()) {
                 QString currentFile = contents[0].toObject()["text"].toString();
                 QString uri = contents[0].toObject()["uri"].toString();
-                systemPrompt += "\n\nCurrently open file (" + uri + "):\n" + currentFile;
+                // ONLY add current file context if it's NOT empty. 
+                // In some tests, we might want to start with a clean slate.
+                if (!currentFile.isEmpty()) {
+                    systemPrompt += "\n\nCurrently open file (" + uri + "):\n" + currentFile;
+                }
             }
         }
         
@@ -88,7 +105,7 @@ void LLMManager::sendChatRequest(const QString &prompt)
         tools = m_mcpServer->listTools();
     }
     
-    current->sendChatRequest(m_history.toJsonArray(), true);
+    current->sendChatRequest(m_history.toJsonArray(), true, tools);
 }
 
 void LLMManager::handleToolCalls(const QJsonArray &toolCalls)
@@ -97,9 +114,23 @@ void LLMManager::handleToolCalls(const QJsonArray &toolCalls)
 
     for (const auto &callVal : toolCalls) {
         QJsonObject call = callVal.toObject();
-        QString name = call["name"].toString();
+        
+        // Handle both direct tool call and OpenAI-style nested function call
+        QString name;
+        QJsonObject args;
         QString id = call["id"].toString();
-        QJsonObject args = call["arguments"].toObject();
+
+        if (call.contains("function")) {
+            QJsonObject function = call["function"].toObject();
+            name = function["name"].toString();
+            QString argsStr = function["arguments"].toString();
+            args = QJsonDocument::fromJson(argsStr.toUtf8()).object();
+        } else {
+            name = call["name"].toString();
+            args = call["arguments"].toObject();
+        }
+
+        if (name.isEmpty()) continue;
 
         emit toolCallStarted(name);
         

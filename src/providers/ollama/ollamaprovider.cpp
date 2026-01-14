@@ -26,7 +26,7 @@ void OllamaProvider::setModel(const QString &m)
     model = m;
 }
 
-void OllamaProvider::sendChatRequest(const QJsonArray &messages, bool stream)
+void OllamaProvider::sendChatRequest(const QJsonArray &messages, bool stream, const QJsonArray &tools)
 {
     QUrl url(baseUrl + "/v1/chat/completions");
     QNetworkRequest req(url);
@@ -36,6 +36,10 @@ void OllamaProvider::sendChatRequest(const QJsonArray &messages, bool stream)
     root["model"] = model;
     root["messages"] = messages;
     root["stream"] = stream;
+    
+    if (!tools.isEmpty()) {
+        root["tools"] = tools;
+    }
 
     auto reply = nam.post(req, QJsonDocument(root).toJson());
 

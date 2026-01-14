@@ -116,19 +116,33 @@ QJsonObject MCPServer::createResource(const QString &uri, const QString &name,
 QJsonObject MCPServer::createTool(const QString &name, const QString &description,
                                   const QJsonArray &inputSchema) const
 {
-    return QJsonObject{
+    QJsonObject properties;
+    QJsonArray required;
+
+    for (const auto &paramVal : inputSchema) {
+        QJsonObject param = paramVal.toObject();
+        QString paramName = param["name"].toString();
+        QJsonObject prop;
+        prop["type"] = param["type"];
+        prop["description"] = param["description"];
+        properties[paramName] = prop;
+        if (param["required"].toBool()) {
+            required.append(paramName);
+        }
+    }
+
+    QJsonObject tool;
+    tool["type"] = "function";
+    tool["function"] = QJsonObject{
         {"name", name},
         {"description", description},
-        {"inputSchema", QJsonObject{
+        {"parameters", QJsonObject{
             {"type", "object"},
-            {"properties", QJsonObject{
-                {"arguments", QJsonObject{
-                    {"type", "object"},
-                    {"properties", inputSchema}
-                }}
-            }}
+            {"properties", properties},
+            {"required", required}
         }}
     };
+    return tool;
 }
 
 MCPServer::MCPResponse MCPServer::handleRequest(const MCPRequest &request)

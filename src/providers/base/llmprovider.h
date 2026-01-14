@@ -16,7 +16,7 @@ public:
     virtual QString name() const = 0;
 
     // Standardized interface for chat completions
-    virtual void sendChatRequest(const QJsonArray &messages, bool stream = true) = 0;
+    virtual void sendChatRequest(const QJsonArray &messages, bool stream = true, const QJsonArray &tools = QJsonArray()) = 0;
 
     // Legacy method, can be implemented in terms of sendChatRequest if needed
     virtual void sendPrompt(const QString &prompt) {

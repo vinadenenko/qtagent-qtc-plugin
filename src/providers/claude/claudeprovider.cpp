@@ -14,7 +14,7 @@ void ClaudeProvider::setBaseUrl(const QString &url) { baseUrl = url; }
 void ClaudeProvider::setModel(const QString &m) { model = m; }
 void ClaudeProvider::setApiKey(const QString &key) { apiKey = key; }
 
-void ClaudeProvider::sendChatRequest(const QJsonArray &messages, bool stream)
+void ClaudeProvider::sendChatRequest(const QJsonArray &messages, bool stream, const QJsonArray &tools)
 {
     QUrl url(baseUrl + "/messages");
     QNetworkRequest req(url);
@@ -43,6 +43,11 @@ void ClaudeProvider::sendChatRequest(const QJsonArray &messages, bool stream)
     root["messages"] = anthropicMessages;
     root["stream"] = stream;
     root["max_tokens"] = 4096;
+    
+    if (!tools.isEmpty()) {
+        // Claude tools conversion would go here if needed
+        // root["tools"] = tools; 
+    }
 
     auto reply = nam.post(req, QJsonDocument(root).toJson());
 

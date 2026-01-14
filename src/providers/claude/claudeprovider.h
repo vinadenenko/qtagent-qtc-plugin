@@ -16,7 +16,7 @@ public:
     void setModel(const QString &model);
     void setApiKey(const QString &key);
 
-    void sendChatRequest(const QJsonArray &messages, bool stream = true) override;
+    void sendChatRequest(const QJsonArray &messages, bool stream = true, const QJsonArray &tools = QJsonArray()) override;
 
 private:
     QNetworkAccessManager nam;
