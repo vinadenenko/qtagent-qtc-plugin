@@ -95,6 +95,24 @@ if(WITH_TESTS)
     Qt6::Network
   )
   target_include_directories(tst_lmstudio_integration PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+  add_executable(tst_tooling_integration
+    tests/integration_tests/tst_tooling_integration.cpp
+    src/llmmanager.cpp
+    src/providers/openai/openaiprovider.cpp
+    src/providers/base/llmprovider.cpp
+    src/mcp/mcpserver.cpp
+    src/core/codeeditormanager.cpp
+  )
+  target_link_libraries(tst_tooling_integration PRIVATE
+    Qt6::Test
+    Qt6::Network
+    Qt6::Widgets
+    QtCreator::Core
+    QtCreator::TextEditor
+    QtCreator::ProjectExplorer
+  )
+  target_include_directories(tst_tooling_integration PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
 
 add_qtc_plugin(QLP
