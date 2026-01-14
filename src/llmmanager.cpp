@@ -16,6 +16,7 @@ void LLMManager::setProvider(LLMProvider *provider)
         });
 
         connect(current, &LLMProvider::partialResponse, this, [this](const QString &delta) {
+            // If we get a partial response, it means we are receiving content from the assistant.
             m_currentAssistantResponse += delta;
             emit partialResponse(delta);
         });

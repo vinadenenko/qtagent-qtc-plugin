@@ -104,6 +104,7 @@ private slots:
 
         // Wait for final response
         if (responseSpy.isEmpty()) {
+            qDebug() << "Waiting for final responseReady signal...";
             QVERIFY2(responseSpy.wait(30000), "Timeout waiting for responseReady");
         }
         
