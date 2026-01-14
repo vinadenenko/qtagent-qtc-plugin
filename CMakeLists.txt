@@ -84,6 +84,17 @@ if(WITH_TESTS)
     QtCreator::Aggregation
   )
   target_include_directories(tst_llmmanager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+  add_executable(tst_lmstudio_integration
+    tests/integration_tests/tst_lmstudio_integration.cpp
+    src/providers/openai/openaiprovider.cpp
+    src/providers/base/llmprovider.cpp
+  )
+  target_link_libraries(tst_lmstudio_integration PRIVATE
+    Qt6::Test
+    Qt6::Network
+  )
+  target_include_directories(tst_lmstudio_integration PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
 
 add_qtc_plugin(QLP
