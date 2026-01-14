@@ -17,6 +17,7 @@ public:
     void setBaseUrl(const QString &url);
     void setModel(const QString &model);
 
+    void sendChatRequest(const QJsonArray &messages, bool stream = true) override;
     void sendPrompt(const QString &prompt) override;
 
 private:

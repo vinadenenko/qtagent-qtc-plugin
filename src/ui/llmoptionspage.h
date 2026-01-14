@@ -4,6 +4,7 @@
 #include <coreplugin/dialogs/ioptionspage.h>
 
 class QLineEdit;
+class QComboBox;
 
 class LLMOptionsPage : public Core::IOptionsPage
 {
@@ -15,8 +16,10 @@ public:
     void finish() override;
 
 private:
+    QComboBox *providerCombo;
     QLineEdit *baseUrlEdit;
     QLineEdit *modelEdit;
+    QLineEdit *apiKeyEdit;
     QWidget *widget_ = nullptr;
 };
 

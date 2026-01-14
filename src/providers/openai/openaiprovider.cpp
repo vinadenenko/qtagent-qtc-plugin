@@ -1,36 +1,30 @@
-#include "ollamaprovider.h"
-
+#include "openaiprovider.h"
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
-
 #include "src/settings/llmsettings.h"
 
-OllamaProvider::OllamaProvider(QObject *parent)
+OpenAIProvider::OpenAIProvider(QObject *parent)
     : LLMProvider(parent)
 {
-    auto &s = LLMSettings::instance();
-    baseUrl = s.baseUrl();
-    model = s.model();
+    // In a real implementation, we'd pull these from LLMSettings
+    // For now, let's just initialize them.
 }
 
-void OllamaProvider::setBaseUrl(const QString &url)
-{
-    baseUrl = url;
-}
+void OpenAIProvider::setBaseUrl(const QString &url) { baseUrl = url; }
+void OpenAIProvider::setModel(const QString &m) { model = m; }
+void OpenAIProvider::setApiKey(const QString &key) { apiKey = key; }
 
-void OllamaProvider::setModel(const QString &m)
+void OpenAIProvider::sendChatRequest(const QJsonArray &messages, bool stream)
 {
-    model = m;
-}
-
-void OllamaProvider::sendChatRequest(const QJsonArray &messages, bool stream)
-{
-    QUrl url(baseUrl + "/v1/chat/completions");
+    QUrl url(baseUrl + "/chat/completions");
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    if (!apiKey.isEmpty()) {
+        req.setRawHeader("Authorization", "Bearer " + apiKey.toUtf8());
+    }
 
     QJsonObject root;
     root["model"] = model;
@@ -58,6 +52,9 @@ void OllamaProvider::sendChatRequest(const QJsonArray &messages, bool stream)
                         if (delta.contains("content")) {
                             emit partialResponse(delta["content"].toString());
                         }
+                        if (delta.contains("tool_calls")) {
+                            // TODO: Buffer and emit tool calls when stream finished or delta complete
+                        }
                     }
                 }
             }
@@ -65,8 +62,7 @@ void OllamaProvider::sendChatRequest(const QJsonArray &messages, bool stream)
     }
 
     connect(reply, &QNetworkReply::finished, this, [this, reply, stream]{
-        if (reply->error() != QNetworkReply::NoError)
-        {
+        if (reply->error() != QNetworkReply::NoError) {
             emit errorOccurred(reply->errorString());
             reply->deleteLater();
             return;
@@ -77,24 +73,15 @@ void OllamaProvider::sendChatRequest(const QJsonArray &messages, bool stream)
             const auto doc = QJsonDocument::fromJson(data);
             const auto obj = doc.object();
             const auto choices = obj["choices"].toArray();
-            if (!choices.isEmpty())
-            {
+            if (!choices.isEmpty()) {
                 const auto msgObj = choices[0].toObject()["message"].toObject();
                 emit responseReady(msgObj["content"].toString());
-            }
-            else
-            {
-                emit errorOccurred("Empty LLM response");
+            } else {
+                emit errorOccurred("Empty OpenAI response");
             }
         } else {
             emit streamFinished();
         }
-
         reply->deleteLater();
     });
-}
-
-void OllamaProvider::sendPrompt(const QString &prompt)
-{
-    LLMProvider::sendPrompt(prompt);
 }

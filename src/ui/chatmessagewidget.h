@@ -15,6 +15,9 @@ public:
 
     ChatMessageWidget(Role role, const QString &text, QWidget *parent = nullptr);
 
+    QString text() const { return messageText; }
+    void setText(const QString &text);
+
 signals:
     void copyRequested(const QString &text);
     void insertRequested(const QString &text);
@@ -22,5 +25,6 @@ signals:
 
 private:
     QString messageText;
+    QLabel *textLabel;
 };
 #endif // CHATMESSAGEWIDGET_H

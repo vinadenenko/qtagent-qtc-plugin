@@ -36,14 +36,17 @@ endif()
 add_qtc_plugin(QLP
   PLUGIN_DEPENDS
     QtCreator::Core
+    QtCreator::TextEditor
+    QtCreator::ProjectExplorer
   DEPENDS
     Qt::Widgets
     Qt::Network
     QtCreator::ExtensionSystem
     QtCreator::Utils
+    QtCreator::Aggregation
   SOURCES
-    # .github/workflows/build_cmake.yml
     # .github/workflows/README.md
+    # .github/workflows/build_cmake.yml
     README.md
     qlp.cpp
     qlpconstants.h
@@ -59,14 +62,20 @@ target_sources(QLP
 
     src/providers/base/llmprovider.h src/providers/base/llmprovider.cpp
     src/providers/ollama/ollamaprovider.h src/providers/ollama/ollamaprovider.cpp
+    src/providers/openai/openaiprovider.h src/providers/openai/openaiprovider.cpp
+    src/providers/claude/claudeprovider.h src/providers/claude/claudeprovider.cpp
 
     src/llmmanager.h src/llmmanager.cpp
+    src/core/conversationhistory.h
 
     src/settings/llmsettings.h src/settings/llmsettings.cpp
+    src/core/codeeditormanager.h src/core/codeeditormanager.cpp
+    src/mcp/mcpserver.h src/mcp/mcpserver.cpp
 )
 
 # Enable the Run button in Qt Creator
 get_target_property(QtCreatorCorePath QtCreator::Core LOCATION)
+message("QtCreatorCore lib path: " ${QtCreatorCorePath})
 find_program(QtCreatorExecutable
   NAMES
     qtcreator "Qt Creator"
