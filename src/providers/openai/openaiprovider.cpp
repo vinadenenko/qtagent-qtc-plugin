@@ -53,7 +53,8 @@ void OpenAIProvider::sendChatRequest(const QJsonArray &messages, bool stream)
                             emit partialResponse(delta["content"].toString());
                         }
                         if (delta.contains("tool_calls")) {
-                            // TODO: Buffer and emit tool calls when stream finished or delta complete
+                            QJsonArray toolCalls = delta["tool_calls"].toArray();
+                            emit toolCallsReceived(toolCalls);
                         }
                     }
                 }

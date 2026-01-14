@@ -21,21 +21,21 @@ public:
         bool isValid;
     };
     
-    EditorContext getCurrentEditorContext() const;
+    virtual EditorContext getCurrentEditorContext() const;
     
-    bool insertText(const QString &text);
-    bool replaceSelectedText(const QString &text);
-    bool insertTextAtPosition(const QString &text, int position);
+    virtual bool insertText(const QString &text);
+    virtual bool replaceSelectedText(const QString &text);
+    virtual bool insertTextAtPosition(const QString &text, int position);
     
-    bool createFile(const QString &filePath, const QString &content);
-    bool openFile(const QString &filePath);
-    bool readFile(const QString &filePath, QString &content);
-    bool writeFile(const QString &filePath, const QString &content);
-    bool deleteFile(const QString &filePath);
-    bool fileExists(const QString &filePath) const;
+    virtual bool createFile(const QString &filePath, const QString &content);
+    virtual bool openFile(const QString &filePath);
+    virtual bool readFile(const QString &filePath, QString &content);
+    virtual bool writeFile(const QString &filePath, const QString &content);
+    virtual bool deleteFile(const QString &filePath);
+    virtual bool fileExists(const QString &filePath) const;
     
-    QString getProjectPath() const;
-    QString resolvePath(const QString &relativePath) const;
+    virtual QString getProjectPath() const;
+    virtual QString resolvePath(const QString &relativePath) const;
 
 signals:
     void editorContextChanged(const CodeEditorManager::EditorContext &context);
