@@ -4,7 +4,9 @@
 
 #include <QFormLayout>
 #include <QLineEdit>
+#include <QComboBox>
 #include <QWidget>
+#include <QObject>
 
 LLMOptionsPage::LLMOptionsPage() : Core::IOptionsPage(true)
 {
@@ -12,7 +14,6 @@ LLMOptionsPage::LLMOptionsPage() : Core::IOptionsPage(true)
     setDisplayName("LLM Provider");
     setCategory("LLM");
     registerCategory(Utils::Id::generate(), "Test LLM", "");
-    // setDisplayCategory("LLM Assistant");
 }
 
 QWidget *LLMOptionsPage::widget()
@@ -22,12 +23,24 @@ QWidget *LLMOptionsPage::widget()
 
     widget_ = new QWidget;
 
-    baseUrlEdit = new QLineEdit(LLMSettings::instance().baseUrl());
-    modelEdit = new QLineEdit(LLMSettings::instance().model());
+    auto &s = LLMSettings::instance();
+    
+    providerCombo = new QComboBox;
+    providerCombo->addItems({"Ollama", "OpenAI", "Claude"});
+    providerCombo->setCurrentText(s.providerType());
+
+    connect(providerCombo, &QComboBox::currentTextChanged, this, &LLMOptionsPage::onProviderChanged);
+
+    baseUrlEdit = new QLineEdit(s.baseUrl());
+    modelEdit = new QLineEdit(s.model());
+    apiKeyEdit = new QLineEdit(s.apiKey());
+    apiKeyEdit->setEchoMode(QLineEdit::Password);
 
     auto layout = new QFormLayout(widget_);
+    layout->addRow("Provider:", providerCombo);
     layout->addRow("Base URL:", baseUrlEdit);
     layout->addRow("Model:", modelEdit);
+    layout->addRow("API Key:", apiKeyEdit);
 
     return widget_;
 }
@@ -35,9 +48,24 @@ QWidget *LLMOptionsPage::widget()
 void LLMOptionsPage::apply()
 {
     auto &s = LLMSettings::instance();
+    s.setProviderType(providerCombo->currentText());
     s.setBaseUrl(baseUrlEdit->text());
     s.setModel(modelEdit->text());
+    s.setApiKey(apiKeyEdit->text());
     s.save();
+}
+
+void LLMOptionsPage::onProviderChanged(const QString &type)
+{
+    if (baseUrlEdit->text().isEmpty() || 
+        baseUrlEdit->text() == "http://localhost:11434" || 
+        baseUrlEdit->text() == "https://api.openai.com/v1" || 
+        baseUrlEdit->text() == "https://api.anthropic.com/v1") 
+    {
+        if (type == "Ollama") baseUrlEdit->setText("http://localhost:11434");
+        else if (type == "OpenAI") baseUrlEdit->setText("https://api.openai.com/v1");
+        else if (type == "Claude") baseUrlEdit->setText("https://api.anthropic.com/v1");
+    }
 }
 
 void LLMOptionsPage::finish()

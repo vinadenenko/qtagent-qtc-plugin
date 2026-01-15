@@ -4,9 +4,9 @@
 #include <QDockWidget>
 #include <QVBoxLayout>
 
-
 #include "src/llmmanager.h"
 #include "src/ui/typingindicatorwidget.h"
+#include "src/ui/chatmessagewidget.h"
 
 class QTextEdit;
 class QPushButton;
@@ -25,15 +25,19 @@ private slots:
 private:
     void addUserMessage(const QString &text);
     void addAssistantMessage(const QString &text);
+    void updateAssistantMessage(const QString &delta);
 
     void startTypingAnimation();
     void stopTypingAnimation();
+    void initProvider();
+
 private:
     QVBoxLayout *chatLayout;
     QTextEdit *input;
     QPushButton *sendButton;
 
     TypingIndicatorWidget *typingIndicator_ = nullptr;
+    ChatMessageWidget *currentAssistantBubble = nullptr;
 
     LLMManager *llmManager;
 };

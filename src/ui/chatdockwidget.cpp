@@ -2,11 +2,14 @@
 
 #include "chatmessagewidget.h"
 #include "src/providers/ollama/ollamaprovider.h"
-
+#include "src/providers/openai/openaiprovider.h"
+#include "src/providers/claude/claudeprovider.h"
+#include "src/settings/llmsettings.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QTextEdit>
 #include <QPushButton>
 #include <QWidget>
@@ -14,6 +17,9 @@
 #include <QClipboard>
 #include <QApplication>
 #include <QKeyEvent>
+
+#include "src/core/codeeditormanager.h"
+#include "src/mcp/mcpserver.h"
 
 ChatDockWidget::ChatDockWidget(QWidget *parent)
     : QDockWidget("LLM Assistant", parent)
@@ -36,11 +42,11 @@ ChatDockWidget::ChatDockWidget(QWidget *parent)
 
     input->installEventFilter(this);
 
-    auto sendBtn = new QPushButton("Send");
+    sendButton = new QPushButton("Send");
 
     auto bottomLayout = new QHBoxLayout;
     bottomLayout->addWidget(input);
-    bottomLayout->addWidget(sendBtn);
+    bottomLayout->addWidget(sendButton);
 
     auto mainLayout = new QVBoxLayout(root);
     mainLayout->addWidget(scroll);
@@ -48,25 +54,117 @@ ChatDockWidget::ChatDockWidget(QWidget *parent)
 
     setWidget(root);
 
-    connect(sendBtn, &QPushButton::clicked, this, &ChatDockWidget::onSendClicked);
+    connect(sendButton, &QPushButton::clicked, this, &ChatDockWidget::onSendClicked);
 
     llmManager = new LLMManager(this);
+    
+    auto editorManager = new CodeEditorManager(this);
+    auto mcpServer = new MCPServer(editorManager, this);
+    llmManager->setMCPServer(mcpServer);
 
-    auto ollama = new OllamaProvider(this);
-    ollama->setBaseUrl("http://localhost:11434");
-    ollama->setModel("llama3");
+    // New conversation button
+    auto clearButton = new QPushButton("New Chat");
+    bottomLayout->insertWidget(0, clearButton);
+    connect(clearButton, &QPushButton::clicked, this, [this](){
+        llmManager->clearHistory();
+        
+        // Remove all bubbles from UI
+        QLayoutItem *child;
+        while ((child = chatLayout->takeAt(0)) != nullptr) {
+            if (child->layout()) {
+                // It's a wrapper layout
+                QLayoutItem *wrapperChild;
+                while ((wrapperChild = child->layout()->takeAt(0)) != nullptr) {
+                    if (wrapperChild->widget()) delete wrapperChild->widget();
+                    delete wrapperChild;
+                }
+                delete child->layout();
+            } else if (child->widget()) {
+                delete child->widget();
+            }
+            delete child;
+        }
+        chatLayout->addStretch();
+        currentAssistantBubble = nullptr;
+    });
 
-    llmManager->setProvider(ollama);
+    initProvider();
 
     connect(llmManager, &LLMManager::responseReady, this, [this](const QString &t){
         stopTypingAnimation();
-        addAssistantMessage(t);
+        if (currentAssistantBubble) {
+            currentAssistantBubble->setText(t);
+            currentAssistantBubble = nullptr;
+        } else {
+            addAssistantMessage(t);
+        }
+    });
+
+    connect(llmManager, &LLMManager::partialResponse, this, [this](const QString &delta){
+        stopTypingAnimation();
+        updateAssistantMessage(delta);
+    });
+
+    connect(llmManager, &LLMManager::streamFinished, this, [this](){
+        stopTypingAnimation();
+        currentAssistantBubble = nullptr;
+    });
+
+    connect(llmManager, &LLMManager::toolCallStarted, this, [this](const QString &name){
+        auto bubble = new ChatMessageWidget(ChatMessageWidget::Tool, "🔧 **Calling tool:** `" + name + "`...");
+        auto wrapper = new QHBoxLayout;
+        wrapper->addWidget(bubble);
+        wrapper->addStretch();
+        chatLayout->insertLayout(chatLayout->count()-1, wrapper);
+        currentAssistantBubble = nullptr; 
+    });
+
+    connect(llmManager, &LLMManager::toolCallFinished, this, [this](const QString &name, const QString &result){
+        auto bubble = new ChatMessageWidget(ChatMessageWidget::Tool, "✅ **Tool finished:** `" + name + "`\n\nResult:\n```json\n" + result + "\n```");
+        auto wrapper = new QHBoxLayout;
+        wrapper->addWidget(bubble);
+        wrapper->addStretch();
+        chatLayout->insertLayout(chatLayout->count()-1, wrapper);
+        currentAssistantBubble = nullptr;
     });
 
     connect(llmManager, &LLMManager::errorOccurred, this, [this](const QString &t){
         stopTypingAnimation();
-        addAssistantMessage("Error: " + t);
+        auto bubble = new ChatMessageWidget(ChatMessageWidget::Error, "**Error:** " + t);
+        auto wrapper = new QHBoxLayout;
+        wrapper->addWidget(bubble);
+        wrapper->addStretch();
+        chatLayout->insertLayout(chatLayout->count()-1, wrapper);
+        currentAssistantBubble = nullptr;
     });
+}
+
+void ChatDockWidget::initProvider()
+{
+    auto &s = LLMSettings::instance();
+    QString type = s.providerType();
+    
+    LLMProvider *provider = nullptr;
+    if (type == "OpenAI") {
+        auto p = new OpenAIProvider(this);
+        p->setBaseUrl(s.baseUrl());
+        p->setModel(s.model());
+        p->setApiKey(s.apiKey());
+        provider = p;
+    } else if (type == "Claude") {
+        auto p = new ClaudeProvider(this);
+        p->setBaseUrl(s.baseUrl());
+        p->setModel(s.model());
+        p->setApiKey(s.apiKey());
+        provider = p;
+    } else {
+        auto p = new OllamaProvider(this);
+        p->setBaseUrl(s.baseUrl());
+        p->setModel(s.model());
+        provider = p;
+    }
+    
+    llmManager->setProvider(provider);
 }
 
 bool ChatDockWidget::eventFilter(QObject *obj, QEvent *event)
@@ -91,11 +189,12 @@ void ChatDockWidget::onSendClicked()
 
     input->clear();
     addUserMessage(text);
-
-    // MOCK LLM RESPONSE
-    // QTimer::singleShot(600, this, [=]{
-    //     addAssistantMessage("Mock LLM response for:\n" + text);
-    // });
+    
+    // Check if provider settings changed
+    initProvider(); 
+    
+    llmManager->sendChatRequest(text);
+    startTypingAnimation();
 }
 
 void ChatDockWidget::addUserMessage(const QString &text)
@@ -107,10 +206,6 @@ void ChatDockWidget::addUserMessage(const QString &text)
     wrapper->addWidget(bubble);
 
     chatLayout->insertLayout(chatLayout->count()-1, wrapper);
-
-    llmManager->sendPrompt(text);
-
-    startTypingAnimation();
 }
 
 void ChatDockWidget::addAssistantMessage(const QString &text)
@@ -122,13 +217,13 @@ void ChatDockWidget::addAssistantMessage(const QString &text)
     });
 
     connect(bubble, &ChatMessageWidget::insertRequested, this, [=](const QString &t){
-        // placeholder — editor insertion later
-        QApplication::clipboard()->setText(t);
+        CodeEditorManager cem;
+        cem.insertText(t);
     });
 
     connect(bubble, &ChatMessageWidget::replaceRequested, this, [=](const QString &t){
-        // placeholder — editor replace later
-        QApplication::clipboard()->setText(t);
+        CodeEditorManager cem;
+        cem.replaceSelectedText(t);
     });
 
     auto wrapper = new QHBoxLayout;
@@ -136,6 +231,30 @@ void ChatDockWidget::addAssistantMessage(const QString &text)
     wrapper->addStretch();
 
     chatLayout->insertLayout(chatLayout->count()-1, wrapper);
+}
+
+void ChatDockWidget::updateAssistantMessage(const QString &delta)
+{
+    if (!currentAssistantBubble) {
+        currentAssistantBubble = new ChatMessageWidget(ChatMessageWidget::Assistant, "");
+        
+        connect(currentAssistantBubble, &ChatMessageWidget::copyRequested, this, [=](const QString &t){
+            QApplication::clipboard()->setText(t);
+        });
+
+        auto wrapper = new QHBoxLayout;
+        wrapper->addWidget(currentAssistantBubble);
+        wrapper->addStretch();
+
+        chatLayout->insertLayout(chatLayout->count()-1, wrapper);
+    }
+    
+    currentAssistantBubble->setText(currentAssistantBubble->text() + delta);
+    
+    // Scroll to bottom
+    if (auto scroll = qobject_cast<QScrollArea*>(widget()->layout()->itemAt(0)->widget())) {
+        scroll->verticalScrollBar()->setValue(scroll->verticalScrollBar()->maximum());
+    }
 }
 
 void ChatDockWidget::startTypingAnimation()
