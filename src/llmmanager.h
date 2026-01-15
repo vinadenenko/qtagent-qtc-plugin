@@ -27,6 +27,8 @@ signals:
     void errorOccurred(const QString &error);
     void toolCallStarted(const QString &name);
     void toolCallFinished(const QString &name, const QString &result);
+    void modelInfoReceived(const QString &actualModel);
+    void historyUpdated();
 
 private:
     void handleToolCalls(const QJsonArray &toolCalls);

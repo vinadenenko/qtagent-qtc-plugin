@@ -139,6 +139,7 @@ target_sources(QLP
   PRIVATE
     src/ui/chatdockwidget.h src/ui/chatdockwidget.cpp
     src/ui/chatmessagewidget.h src/ui/chatmessagewidget.cpp
+    src/ui/chatfooterwidget.h src/ui/chatfooterwidget.cpp
     src/ui/llmoptionspage.h src/ui/llmoptionspage.cpp
     src/ui/typingindicatorwidget.h src/ui/typingindicatorwidget.cpp
 

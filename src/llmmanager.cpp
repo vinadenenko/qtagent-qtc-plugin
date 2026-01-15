@@ -1,17 +1,24 @@
 #include "llmmanager.h"
+#include "src/settings/llmsettings.h"
 
 LLMManager::LLMManager(QObject *parent) : QObject(parent) {}
 
 void LLMManager::setProvider(LLMProvider *provider)
 {
-    if (current)
-        disconnect(current, nullptr, this, nullptr);
+    if (current == provider)
+        return;
+
+    if (current) {
+        current->disconnect(this);
+        current->deleteLater();
+    }
 
     current = provider;
 
     if (current) {
         connect(current, &LLMProvider::responseReady, this, [this](const QString &text) {
             m_history.addMessage(Message::Assistant, text);
+            emit historyUpdated();
             emit responseReady(text);
         });
 
@@ -24,6 +31,7 @@ void LLMManager::setProvider(LLMProvider *provider)
         connect(current, &LLMProvider::streamFinished, this, [this]() {
             if (!m_currentAssistantResponse.isEmpty()) {
                 m_history.addMessage(Message::Assistant, m_currentAssistantResponse);
+                emit historyUpdated();
                 emit responseReady(m_currentAssistantResponse);
                 m_currentAssistantResponse.clear();
             }
@@ -37,6 +45,7 @@ void LLMManager::setProvider(LLMProvider *provider)
             // If the model output a lot of "thought" or content before calling tools,
             // we should probably store it.
             m_history.addMessage(Message::Assistant, content, QString(), toolCalls);
+            emit historyUpdated();
             
             // We emitted content via partialResponse, so the UI should already show it.
             
@@ -45,13 +54,19 @@ void LLMManager::setProvider(LLMProvider *provider)
         });
 
         connect(current, &LLMProvider::errorOccurred, this, &LLMManager::errorOccurred);
+        
+        connect(current, &LLMProvider::modelInfoReceived, this, &LLMManager::modelInfoReceived);
     }
 }
 
 void LLMManager::sendPrompt(const QString &prompt)
 {
-    if (current)
+    if (current) {
+        // Simple token management before sending
+        m_history.trim(LLMSettings::instance().contextLimit());
+        emit historyUpdated();
         current->sendPrompt(prompt);
+    }
 }
 
 void LLMManager::setMCPServer(MCPServer *server)
@@ -110,14 +125,17 @@ void LLMManager::sendChatRequest(const QString &prompt)
         }
         
         m_history.addMessage(Message::System, systemPrompt);
+        emit historyUpdated();
     }
 
     if (!prompt.isEmpty()) {
         m_history.addMessage(Message::User, prompt);
+        emit historyUpdated();
     }
     
-    // Simple token management - keep it under 32k estimated tokens
-    m_history.trim(32000);
+    // Simple token management
+    m_history.trim(LLMSettings::instance().contextLimit());
+    emit historyUpdated();
 
     m_currentAssistantResponse.clear();
     
@@ -161,15 +179,22 @@ void LLMManager::handleToolCalls(const QJsonArray &toolCalls)
         emit toolCallFinished(name, resultStr);
         
         m_history.addMessage(Message::Tool, resultStr, id);
+        emit historyUpdated();
     }
 
     // After all tool calls, request next response from LLM
     // We clear currentAssistantResponse to ensure we don't carry over content from the tool-deciding turn
     m_currentAssistantResponse.clear();
+    
+    // Simple token management before tool-result follow-up
+    m_history.trim(LLMSettings::instance().contextLimit());
+    emit historyUpdated();
+    
     current->sendChatRequest(m_history.toJsonArray(), true);
 }
 
 void LLMManager::clearHistory()
 {
     m_history.clear();
+    emit historyUpdated();
 }

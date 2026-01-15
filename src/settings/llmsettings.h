@@ -16,13 +16,19 @@ public:
     QString apiKey() const;
     QString providerType() const;
 
+    int contextLimit() const;
+
     void setBaseUrl(const QString &v);
     void setModel(const QString &v);
     void setApiKey(const QString &v);
     void setProviderType(const QString &v);
+    void setContextLimit(int v);
 
     void load();
     void save();
+
+signals:
+    void settingsChanged();
 
 private:
     LLMSettings();
@@ -30,5 +36,6 @@ private:
     QString model_;
     QString apiKey_;
     QString providerType_;
+    int contextLimit_ = 32000;
 };
 #endif // LLMSETTINGS_H

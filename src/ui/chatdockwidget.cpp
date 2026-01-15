@@ -52,11 +52,23 @@ ChatDockWidget::ChatDockWidget(QWidget *parent)
     mainLayout->addWidget(scroll);
     mainLayout->addLayout(bottomLayout);
 
+    footer = new ChatFooterWidget(root);
+    mainLayout->addWidget(footer);
+
     setWidget(root);
 
     connect(sendButton, &QPushButton::clicked, this, &ChatDockWidget::onSendClicked);
 
     llmManager = new LLMManager(this);
+    
+    // Connect settings changes to provider re-initialization
+    // and also to footer update for context limit
+    connect(&LLMSettings::instance(), &LLMSettings::settingsChanged, this, [this](){
+        initProvider();
+        if (footer) {
+             footer->setTokenUsage(llmManager->history().estimateTokenCount(), LLMSettings::instance().contextLimit());
+        }
+    });
     
     auto editorManager = new CodeEditorManager(this);
     auto mcpServer = new MCPServer(editorManager, this);
@@ -89,6 +101,19 @@ ChatDockWidget::ChatDockWidget(QWidget *parent)
     });
 
     initProvider();
+
+    connect(llmManager, &LLMManager::historyUpdated, this, [this](){
+        if (footer) {
+            footer->setTokenUsage(llmManager->history().estimateTokenCount(), LLMSettings::instance().contextLimit());
+        }
+    });
+
+    connect(llmManager, &LLMManager::modelInfoReceived, this, [this](const QString &model){
+        if (footer) {
+            qDebug() << "REC" << model;
+            footer->setModelName(model);
+        }
+    });
 
     connect(llmManager, &LLMManager::responseReady, this, [this](const QString &t){
         stopTypingAnimation();
@@ -165,6 +190,10 @@ void ChatDockWidget::initProvider()
     }
     
     llmManager->setProvider(provider);
+    
+    if (footer) {
+        footer->setModelName(s.model());
+    }
 }
 
 bool ChatDockWidget::eventFilter(QObject *obj, QEvent *event)
@@ -190,8 +219,8 @@ void ChatDockWidget::onSendClicked()
     input->clear();
     addUserMessage(text);
     
-    // Check if provider settings changed
-    initProvider(); 
+    // Check if provider settings changed - only if necessary
+    // initProvider(); 
     
     llmManager->sendChatRequest(text);
     startTypingAnimation();

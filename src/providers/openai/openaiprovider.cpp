@@ -76,6 +76,13 @@ void OpenAIProvider::sendChatRequest(const QJsonArray &messages, bool stream, co
                     }
 
                     QJsonObject obj = doc.object();
+                    if (obj.contains("model")) {
+                        QString reportedModel = obj["model"].toString();
+                        if (reportedModel != m_lastReportedModel) {
+                            m_lastReportedModel = reportedModel;
+                            emit modelInfoReceived(reportedModel);
+                        }
+                    }
                     QJsonArray choices = obj["choices"].toArray();
                     if (!choices.isEmpty()) {
                         QJsonObject delta = choices[0].toObject()["delta"].toObject();
@@ -175,6 +182,13 @@ void OpenAIProvider::sendChatRequest(const QJsonArray &messages, bool stream, co
             const auto data = reply->readAll();
             const auto doc = QJsonDocument::fromJson(data);
             const auto obj = doc.object();
+            if (obj.contains("model")) {
+                QString reportedModel = obj["model"].toString();
+                if (reportedModel != m_lastReportedModel) {
+                    m_lastReportedModel = reportedModel;
+                    emit modelInfoReceived(reportedModel);
+                }
+            }
             const auto choices = obj["choices"].toArray();
             if (!choices.isEmpty()) {
                 const auto msgObj = choices[0].toObject()["message"].toObject();

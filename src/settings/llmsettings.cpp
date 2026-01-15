@@ -28,6 +28,7 @@ void LLMSettings::load()
     baseUrl_      = s.value("LLM/baseUrl", defaultUrl).toString();
     model_        = s.value("LLM/model", "llama3").toString();
     apiKey_       = s.value("LLM/apiKey", "").toString();
+    contextLimit_ = s.value("LLM/contextLimit", 32000).toInt();
 }
 
 void LLMSettings::save()
@@ -37,14 +38,18 @@ void LLMSettings::save()
     s.setValue("LLM/model", model_);
     s.setValue("LLM/apiKey", apiKey_);
     s.setValue("LLM/providerType", providerType_);
+    s.setValue("LLM/contextLimit", contextLimit_);
+    emit settingsChanged();
 }
 
 QString LLMSettings::baseUrl() const { return baseUrl_; }
 QString LLMSettings::model() const { return model_; }
 QString LLMSettings::apiKey() const { return apiKey_; }
 QString LLMSettings::providerType() const { return providerType_; }
+int LLMSettings::contextLimit() const { return contextLimit_; }
 
 void LLMSettings::setBaseUrl(const QString &v) { baseUrl_ = v; }
 void LLMSettings::setModel(const QString &v) { model_ = v; }
 void LLMSettings::setApiKey(const QString &v) { apiKey_ = v; }
 void LLMSettings::setProviderType(const QString &v) { providerType_ = v; }
+void LLMSettings::setContextLimit(int v) { contextLimit_ = v; }

@@ -36,11 +36,14 @@ QWidget *LLMOptionsPage::widget()
     apiKeyEdit = new QLineEdit(s.apiKey());
     apiKeyEdit->setEchoMode(QLineEdit::Password);
 
+    contextLimitEdit = new QLineEdit(QString::number(s.contextLimit()));
+
     auto layout = new QFormLayout(widget_);
     layout->addRow("Provider:", providerCombo);
     layout->addRow("Base URL:", baseUrlEdit);
     layout->addRow("Model:", modelEdit);
     layout->addRow("API Key:", apiKeyEdit);
+    layout->addRow("Context Limit:", contextLimitEdit);
 
     return widget_;
 }
@@ -52,6 +55,7 @@ void LLMOptionsPage::apply()
     s.setBaseUrl(baseUrlEdit->text());
     s.setModel(modelEdit->text());
     s.setApiKey(apiKeyEdit->text());
+    s.setContextLimit(contextLimitEdit->text().toInt());
     s.save();
 }
 

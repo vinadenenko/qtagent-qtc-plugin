@@ -7,6 +7,7 @@
 #include "src/llmmanager.h"
 #include "src/ui/typingindicatorwidget.h"
 #include "src/ui/chatmessagewidget.h"
+#include "src/ui/chatfooterwidget.h"
 
 class QTextEdit;
 class QPushButton;
@@ -38,6 +39,7 @@ private:
 
     TypingIndicatorWidget *typingIndicator_ = nullptr;
     ChatMessageWidget *currentAssistantBubble = nullptr;
+    ChatFooterWidget *footer = nullptr;
 
     LLMManager *llmManager;
 };

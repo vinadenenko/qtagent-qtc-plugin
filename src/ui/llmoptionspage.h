@@ -25,6 +25,7 @@ private:
     QLineEdit *baseUrlEdit;
     QLineEdit *modelEdit;
     QLineEdit *apiKeyEdit;
+    QLineEdit *contextLimitEdit;
     QWidget *widget_ = nullptr;
 };
 

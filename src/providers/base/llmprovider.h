@@ -34,6 +34,10 @@ signals:
     void streamFinished();
     void errorOccurred(const QString &error);
     void toolCallsReceived(const QJsonArray &toolCalls);
+    void modelInfoReceived(const QString &actualModel);
+
+protected:
+    QString m_lastReportedModel;
 };
 
 #endif // LLMPROVIDER_H

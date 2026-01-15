@@ -73,6 +73,13 @@ void ClaudeProvider::sendChatRequest(const QJsonArray &messages, bool stream, co
                     QByteArray data = line.mid(6);
                     QJsonDocument doc = QJsonDocument::fromJson(data);
                     QJsonObject obj = doc.object();
+                    if (obj.contains("model")) {
+                        QString reportedModel = obj["model"].toString();
+                        if (reportedModel != m_lastReportedModel) {
+                            m_lastReportedModel = reportedModel;
+                            emit modelInfoReceived(reportedModel);
+                        }
+                    }
                     QString type = obj["type"].toString();
                     
                     if (type == "content_block_delta") {
@@ -110,6 +117,9 @@ void ClaudeProvider::sendChatRequest(const QJsonArray &messages, bool stream, co
             const auto data = reply->readAll();
             const auto doc = QJsonDocument::fromJson(data);
             const auto obj = doc.object();
+            if (obj.contains("model")) {
+                emit modelInfoReceived(obj["model"].toString());
+            }
             const auto content = obj["content"].toArray();
             if (!content.isEmpty()) {
                 const auto textObj = content[0].toObject();

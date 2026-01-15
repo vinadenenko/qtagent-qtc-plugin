@@ -54,6 +54,33 @@ private slots:
         QTRY_COMPARE_WITH_TIMEOUT(finalResponse, QString("Tool worked"), 2000);
         QVERIFY(manager.history().messageCount() >= 3); // User, ToolCall (Assistant), ToolResult, Final Assistant
     }
+
+    void testHistoryUpdated() {
+        LLMManager manager;
+        MockProvider *provider = new MockProvider();
+        manager.setProvider(provider);
+        
+        QSignalSpy spy(&manager, &LLMManager::historyUpdated);
+        
+        manager.sendChatRequest("Hello");
+        QVERIFY(spy.count() > 0);
+        
+        int initialTokens = manager.history().estimateTokenCount();
+        QVERIFY(initialTokens > 0);
+    }
+
+    void testModelInfoForwarding() {
+        LLMManager manager;
+        MockProvider *provider = new MockProvider();
+        manager.setProvider(provider);
+        
+        QSignalSpy spy(&manager, &LLMManager::modelInfoReceived);
+        
+        emit provider->modelInfoReceived("gpt-4o-actual");
+        
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.first().at(0).toString(), QString("gpt-4o-actual"));
+    }
 };
 
 QTEST_MAIN(TestLLMManager)
