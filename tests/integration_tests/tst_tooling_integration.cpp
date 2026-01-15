@@ -35,7 +35,8 @@ private slots:
         m_provider = new OpenAIProvider(this);
         m_provider->setBaseUrl("http://192.168.56.1:1234/v1");
         // m_provider->setModel("local-model"); // Use whatever is configured or a generic name
-        m_provider->setModel("qwen3-8b-deepseek-v3.2-speciale-distill"); // As per user logs
+        // m_provider->setModel("qwen3-8b-deepseek-v3.2-speciale-distill"); // As per user logs
+        m_provider->setModel("qwen3-14b-claude-sonnet-4.5-reasoning-distill");
 
         m_mockEditor = new MockEditorManager();
         m_mcpServer = new MCPServer(m_mockEditor, this);
@@ -105,7 +106,8 @@ private slots:
         // Wait for final response
         if (responseSpy.isEmpty()) {
             qDebug() << "Waiting for final responseReady signal...";
-            QVERIFY2(responseSpy.wait(30000), "Timeout waiting for responseReady");
+            // We wait up to 60 seconds because it's a two-step process at least
+            QVERIFY2(responseSpy.wait(60000), "Timeout waiting for responseReady");
         }
         
         if (!errorSpy.isEmpty()) {

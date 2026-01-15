@@ -24,6 +24,7 @@ void LLMManager::setProvider(LLMProvider *provider)
         connect(current, &LLMProvider::streamFinished, this, [this]() {
             if (!m_currentAssistantResponse.isEmpty()) {
                 m_history.addMessage(Message::Assistant, m_currentAssistantResponse);
+                emit responseReady(m_currentAssistantResponse);
                 m_currentAssistantResponse.clear();
             }
             emit streamFinished();
@@ -38,8 +39,6 @@ void LLMManager::setProvider(LLMProvider *provider)
             m_history.addMessage(Message::Assistant, content, QString(), toolCalls);
             
             // We emitted content via partialResponse, so the UI should already show it.
-            // But we reset currentAssistantBubble in ChatDockWidget when a tool call finishes or starts?
-            // Actually, m_currentAssistantResponse is what we were accumulating.
             
             m_currentAssistantResponse.clear();
             handleToolCalls(toolCalls);
@@ -144,6 +143,8 @@ void LLMManager::handleToolCalls(const QJsonArray &toolCalls)
     }
 
     // After all tool calls, request next response from LLM
+    // We clear currentAssistantResponse to ensure we don't carry over content from the tool-deciding turn
+    m_currentAssistantResponse.clear();
     current->sendChatRequest(m_history.toJsonArray(), true);
 }
 

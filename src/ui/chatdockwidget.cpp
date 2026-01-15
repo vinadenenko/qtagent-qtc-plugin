@@ -85,13 +85,20 @@ ChatDockWidget::ChatDockWidget(QWidget *parent)
     });
 
     connect(llmManager, &LLMManager::toolCallStarted, this, [this](const QString &name){
-        addAssistantMessage("🔧 *Calling tool:* **" + name + "**...");
-        currentAssistantBubble = nullptr; // Next message should be a new bubble or the result
+        auto bubble = new ChatMessageWidget(ChatMessageWidget::Tool, "🔧 **Calling tool:** `" + name + "`...");
+        auto wrapper = new QHBoxLayout;
+        wrapper->addWidget(bubble);
+        wrapper->addStretch();
+        chatLayout->insertLayout(chatLayout->count()-1, wrapper);
+        currentAssistantBubble = nullptr; 
     });
 
     connect(llmManager, &LLMManager::toolCallFinished, this, [this](const QString &name, const QString &result){
-        // Optional: you could show the result in a collapsed way
-        // addAssistantMessage("✅ *Tool* **" + name + "** *finished.*");
+        auto bubble = new ChatMessageWidget(ChatMessageWidget::Tool, "✅ **Tool finished:** `" + name + "`\n\nResult:\n```json\n" + result + "\n```");
+        auto wrapper = new QHBoxLayout;
+        wrapper->addWidget(bubble);
+        wrapper->addStretch();
+        chatLayout->insertLayout(chatLayout->count()-1, wrapper);
         currentAssistantBubble = nullptr;
     });
 
