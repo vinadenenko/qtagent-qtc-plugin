@@ -14,9 +14,14 @@ void ClaudeProvider::setBaseUrl(const QString &url) { baseUrl = url; }
 void ClaudeProvider::setModel(const QString &m) { model = m; }
 void ClaudeProvider::setApiKey(const QString &key) { apiKey = key; }
 
-void ClaudeProvider::sendChatRequest(const QJsonArray &messages, bool stream)
+void ClaudeProvider::sendChatRequest(const QJsonArray &messages, bool stream, const QJsonArray &tools)
 {
-    QUrl url(baseUrl + "/messages");
+    QString fullUrl = baseUrl;
+    if (!fullUrl.endsWith("/messages")) {
+        if (!fullUrl.endsWith("/")) fullUrl += "/";
+        fullUrl += "messages";
+    }
+    QUrl url(fullUrl);
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setRawHeader("x-api-key", apiKey.toUtf8());
@@ -43,14 +48,28 @@ void ClaudeProvider::sendChatRequest(const QJsonArray &messages, bool stream)
     root["messages"] = anthropicMessages;
     root["stream"] = stream;
     root["max_tokens"] = 4096;
+    
+    if (!tools.isEmpty()) {
+        // Claude tools conversion would go here if needed
+        // root["tools"] = tools; 
+    }
 
     auto reply = nam.post(req, QJsonDocument(root).toJson());
 
     if (stream) {
         connect(reply, &QNetworkReply::readyRead, this, [this, reply]() {
-            while (reply->canReadLine()) {
-                QByteArray line = reply->readLine().trimmed();
+            if (reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() >= 400) return;
+
+            QByteArray buffer = reply->readAll();
+            QList<QByteArray> lines = buffer.split('\n');
+            bool sseFound = false;
+
+            for (QByteArray line : lines) {
+                line = line.trimmed();
+                if (line.isEmpty()) continue;
+
                 if (line.startsWith("data: ")) {
+                    sseFound = true;
                     QByteArray data = line.mid(6);
                     QJsonDocument doc = QJsonDocument::fromJson(data);
                     QJsonObject obj = doc.object();
@@ -66,12 +85,23 @@ void ClaudeProvider::sendChatRequest(const QJsonArray &messages, bool stream)
                     }
                 }
             }
+
+            if (!sseFound && !buffer.isEmpty()) {
+                if (buffer.contains("error")) {
+                     emit partialResponse("\n**System Notification:** " + QString::fromUtf8(buffer).trimmed() + "\n");
+                }
+            }
         });
     }
 
     connect(reply, &QNetworkReply::finished, this, [this, reply, stream]{
         if (reply->error() != QNetworkReply::NoError) {
-            emit errorOccurred(reply->errorString());
+            QByteArray errorData = reply->readAll();
+            QString errorMsg = reply->errorString();
+            if (!errorData.isEmpty()) {
+                errorMsg += " - " + QString::fromUtf8(errorData);
+            }
+            emit errorOccurred(errorMsg);
             reply->deleteLater();
             return;
         }

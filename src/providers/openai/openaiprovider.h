@@ -2,6 +2,7 @@
 #define OPENAIPROVIDER_H
 
 #include <QNetworkAccessManager>
+#include <QMap>
 #include "src/providers/base/llmprovider.h"
 
 class OpenAIProvider : public LLMProvider
@@ -16,13 +17,14 @@ public:
     void setModel(const QString &model);
     void setApiKey(const QString &key);
 
-    void sendChatRequest(const QJsonArray &messages, bool stream = true) override;
+    void sendChatRequest(const QJsonArray &messages, bool stream = true, const QJsonArray &tools = QJsonArray()) override;
 
 private:
     QNetworkAccessManager nam;
     QString baseUrl = "https://api.openai.com/v1";
     QString model = "gpt-4o";
     QString apiKey;
+    QMap<int, QJsonObject> m_ongoingToolCalls;
 };
 
 #endif // OPENAIPROVIDER_H

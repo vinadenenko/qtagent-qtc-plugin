@@ -4,14 +4,14 @@
 
 #include <QFrame>
 
-class QLabel;
+class QTextBrowser;
 class QPushButton;
 
 class ChatMessageWidget : public QFrame
 {
     Q_OBJECT
 public:
-    enum Role { User, Assistant };
+    enum Role { User, Assistant, Error, Tool };
 
     ChatMessageWidget(Role role, const QString &text, QWidget *parent = nullptr);
 
@@ -24,7 +24,9 @@ signals:
     void replaceRequested(const QString &text);
 
 private:
+    void updateDisplay();
+
     QString messageText;
-    QLabel *textLabel;
+    QTextBrowser *textBrowser;
 };
 #endif // CHATMESSAGEWIDGET_H

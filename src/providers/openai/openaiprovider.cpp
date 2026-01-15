@@ -17,9 +17,22 @@ void OpenAIProvider::setBaseUrl(const QString &url) { baseUrl = url; }
 void OpenAIProvider::setModel(const QString &m) { model = m; }
 void OpenAIProvider::setApiKey(const QString &key) { apiKey = key; }
 
-void OpenAIProvider::sendChatRequest(const QJsonArray &messages, bool stream)
+void OpenAIProvider::sendChatRequest(const QJsonArray &messages, bool stream, const QJsonArray &tools)
 {
-    QUrl url(baseUrl + "/chat/completions");
+    QString fullUrl = baseUrl;
+    
+    // Most OpenAI-compatible providers expect /v1/chat/completions
+    // If the user provided http://host:port, we should check if they missed /v1
+    if (!fullUrl.contains("/v1") && !fullUrl.contains("/chat/completions")) {
+        if (!fullUrl.endsWith("/")) fullUrl += "/";
+        fullUrl += "v1";
+    }
+
+    if (!fullUrl.endsWith("/chat/completions")) {
+        if (!fullUrl.endsWith("/")) fullUrl += "/";
+        fullUrl += "chat/completions";
+    }
+    QUrl url(fullUrl);
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     if (!apiKey.isEmpty()) {
@@ -30,32 +43,105 @@ void OpenAIProvider::sendChatRequest(const QJsonArray &messages, bool stream)
     root["model"] = model;
     root["messages"] = messages;
     root["stream"] = stream;
+    
+    if (!tools.isEmpty()) {
+        root["tools"] = tools;
+    }
 
     auto reply = nam.post(req, QJsonDocument(root).toJson());
 
     if (stream) {
         connect(reply, &QNetworkReply::readyRead, this, [this, reply]() {
-            while (reply->canReadLine()) {
-                QByteArray line = reply->readLine().trimmed();
+            if (reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() >= 400) return;
+
+            bool sseFound = false;
+            QByteArray buffer = reply->readAll();
+            QList<QByteArray> lines = buffer.split('\n');
+            
+            for (QByteArray line : lines) {
+                line = line.trimmed();
+                if (line.isEmpty()) continue;
+
                 if (line.startsWith("data: ")) {
-                    QByteArray data = line.mid(6);
-                    if (data == "[DONE]") {
-                        emit streamFinished();
-                        return;
-                    }
+                    sseFound = true;
+                    QByteArray data = line.mid(6).trimmed();
+                    if (data == "[DONE]") continue;
 
                     QJsonDocument doc = QJsonDocument::fromJson(data);
+                    if (doc.isNull()) {
+                        if (!data.isEmpty()) {
+                            emit partialResponse("\n**System Notification:** " + QString::fromUtf8(data) + "\n");
+                        }
+                        continue;
+                    }
+
                     QJsonObject obj = doc.object();
                     QJsonArray choices = obj["choices"].toArray();
                     if (!choices.isEmpty()) {
                         QJsonObject delta = choices[0].toObject()["delta"].toObject();
                         if (delta.contains("content")) {
-                            emit partialResponse(delta["content"].toString());
+                            QString content = delta["content"].toString();
+                            if (!content.isEmpty()) {
+                                emit partialResponse(content);
+                            }
                         }
+                        
+                        // Some providers use 'reasoning_content' field (e.g. DeepSeek)
+                        if (delta.contains("reasoning_content")) {
+                            QString reasoning = delta["reasoning_content"].toString();
+                            if (!reasoning.isEmpty()) {
+                                emit partialResponse("<thought>\n" + reasoning + "\n</thought>\n");
+                            }
+                        }
+
                         if (delta.contains("tool_calls")) {
-                            // TODO: Buffer and emit tool calls when stream finished or delta complete
+                            QJsonArray toolCalls = delta["tool_calls"].toArray();
+                            for (const auto &tcVal : toolCalls) {
+                                QJsonObject tc = tcVal.toObject();
+                                int index = 0;
+                                if (tc.contains("index")) {
+                                    index = tc["index"].toInt();
+                                }
+                                
+                                if (!m_ongoingToolCalls.contains(index)) {
+                                    m_ongoingToolCalls[index] = tc;
+                                } else {
+                                    QJsonObject existing = m_ongoingToolCalls[index];
+                                    if (tc.contains("function")) {
+                                        QJsonObject existingFunc = existing["function"].toObject();
+                                        QJsonObject newFunc = tc["function"].toObject();
+                                        
+                                        if (newFunc.contains("arguments")) {
+                                            QString args = existingFunc["arguments"].toString();
+                                            args += newFunc["arguments"].toString();
+                                            existingFunc["arguments"] = args;
+                                        }
+                                        if (newFunc.contains("name")) {
+                                            QString name = existingFunc["name"].toString();
+                                            name += newFunc["name"].toString();
+                                            existingFunc["name"] = name;
+                                        }
+                                        existing["function"] = existingFunc;
+                                    }
+                                    if (tc.contains("id")) {
+                                        existing["id"] = tc["id"];
+                                    }
+                                    if (tc.contains("type")) {
+                                        existing["type"] = tc["type"];
+                                    }
+                                    m_ongoingToolCalls[index] = existing;
+                                }
+                            }
                         }
                     }
+                }
+            }
+
+            if (!sseFound && !buffer.isEmpty()) {
+                // If we got data but none of it looked like SSE, it might be a raw error message
+                // even if status code was 200.
+                if (buffer.contains("Unexpected endpoint") || buffer.contains("error")) {
+                     emit partialResponse("\n**System Notification:** " + QString::fromUtf8(buffer).trimmed() + "\n");
                 }
             }
         });
@@ -63,9 +149,26 @@ void OpenAIProvider::sendChatRequest(const QJsonArray &messages, bool stream)
 
     connect(reply, &QNetworkReply::finished, this, [this, reply, stream]{
         if (reply->error() != QNetworkReply::NoError) {
-            emit errorOccurred(reply->errorString());
+            QByteArray errorData = reply->readAll();
+            QString errorMsg = reply->errorString();
+            if (!errorData.isEmpty()) {
+                errorMsg += " - " + QString::fromUtf8(errorData);
+            }
+            emit errorOccurred(errorMsg);
+            m_ongoingToolCalls.clear();
             reply->deleteLater();
             return;
+        }
+
+        if (!m_ongoingToolCalls.isEmpty()) {
+            QJsonArray finalToolCalls;
+            QList<int> keys = m_ongoingToolCalls.keys();
+            std::sort(keys.begin(), keys.end());
+            for (int key : keys) {
+                finalToolCalls.append(m_ongoingToolCalls[key]);
+            }
+            emit toolCallsReceived(finalToolCalls);
+            m_ongoingToolCalls.clear();
         }
 
         if (!stream) {

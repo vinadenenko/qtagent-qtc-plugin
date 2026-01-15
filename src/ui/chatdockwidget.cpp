@@ -80,16 +80,35 @@ ChatDockWidget::ChatDockWidget(QWidget *parent)
     });
 
     connect(llmManager, &LLMManager::streamFinished, this, [this](){
+        stopTypingAnimation();
         currentAssistantBubble = nullptr;
     });
 
     connect(llmManager, &LLMManager::toolCallStarted, this, [this](const QString &name){
-        addAssistantMessage("🔧 Calling tool: " + name + "...");
+        auto bubble = new ChatMessageWidget(ChatMessageWidget::Tool, "🔧 **Calling tool:** `" + name + "`...");
+        auto wrapper = new QHBoxLayout;
+        wrapper->addWidget(bubble);
+        wrapper->addStretch();
+        chatLayout->insertLayout(chatLayout->count()-1, wrapper);
+        currentAssistantBubble = nullptr; 
+    });
+
+    connect(llmManager, &LLMManager::toolCallFinished, this, [this](const QString &name, const QString &result){
+        auto bubble = new ChatMessageWidget(ChatMessageWidget::Tool, "✅ **Tool finished:** `" + name + "`\n\nResult:\n```json\n" + result + "\n```");
+        auto wrapper = new QHBoxLayout;
+        wrapper->addWidget(bubble);
+        wrapper->addStretch();
+        chatLayout->insertLayout(chatLayout->count()-1, wrapper);
+        currentAssistantBubble = nullptr;
     });
 
     connect(llmManager, &LLMManager::errorOccurred, this, [this](const QString &t){
         stopTypingAnimation();
-        addAssistantMessage("Error: " + t);
+        auto bubble = new ChatMessageWidget(ChatMessageWidget::Error, "**Error:** " + t);
+        auto wrapper = new QHBoxLayout;
+        wrapper->addWidget(bubble);
+        wrapper->addStretch();
+        chatLayout->insertLayout(chatLayout->count()-1, wrapper);
         currentAssistantBubble = nullptr;
     });
 }
@@ -172,11 +191,13 @@ void ChatDockWidget::addAssistantMessage(const QString &text)
     });
 
     connect(bubble, &ChatMessageWidget::insertRequested, this, [=](const QString &t){
-        QApplication::clipboard()->setText(t);
+        CodeEditorManager cem;
+        cem.insertText(t);
     });
 
     connect(bubble, &ChatMessageWidget::replaceRequested, this, [=](const QString &t){
-        QApplication::clipboard()->setText(t);
+        CodeEditorManager cem;
+        cem.replaceSelectedText(t);
     });
 
     auto wrapper = new QHBoxLayout;

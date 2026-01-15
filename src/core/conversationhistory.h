@@ -41,9 +41,22 @@ struct Message {
     QJsonObject toJson() const {
         QJsonObject obj;
         obj["role"] = roleToString(role);
-        obj["content"] = content;
-        if (!toolCallId.isEmpty()) obj["tool_call_id"] = toolCallId;
-        if (!toolCalls.isEmpty()) obj["tool_calls"] = toolCalls;
+        
+        if (role == Tool) {
+            obj["content"] = content;
+            if (!toolCallId.isEmpty()) obj["tool_call_id"] = toolCallId;
+        } else if (role == Assistant && !toolCalls.isEmpty()) {
+            // Assistant message with tool calls often shouldn't have content, or it's null
+            if (content.isEmpty()) {
+                obj["content"] = QJsonValue::Null;
+            } else {
+                obj["content"] = content;
+            }
+            obj["tool_calls"] = toolCalls;
+        } else {
+            obj["content"] = content;
+        }
+        
         return obj;
     }
 };
