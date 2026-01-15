@@ -20,6 +20,14 @@ void OpenAIProvider::setApiKey(const QString &key) { apiKey = key; }
 void OpenAIProvider::sendChatRequest(const QJsonArray &messages, bool stream, const QJsonArray &tools)
 {
     QString fullUrl = baseUrl;
+    
+    // Most OpenAI-compatible providers expect /v1/chat/completions
+    // If the user provided http://host:port, we should check if they missed /v1
+    if (!fullUrl.contains("/v1") && !fullUrl.contains("/chat/completions")) {
+        if (!fullUrl.endsWith("/")) fullUrl += "/";
+        fullUrl += "v1";
+    }
+
     if (!fullUrl.endsWith("/chat/completions")) {
         if (!fullUrl.endsWith("/")) fullUrl += "/";
         fullUrl += "chat/completions";
@@ -44,16 +52,28 @@ void OpenAIProvider::sendChatRequest(const QJsonArray &messages, bool stream, co
 
     if (stream) {
         connect(reply, &QNetworkReply::readyRead, this, [this, reply]() {
-            while (reply->canReadLine()) {
-                QByteArray line = reply->readLine().trimmed();
+            if (reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() >= 400) return;
+
+            bool sseFound = false;
+            QByteArray buffer = reply->readAll();
+            QList<QByteArray> lines = buffer.split('\n');
+            
+            for (QByteArray line : lines) {
+                line = line.trimmed();
+                if (line.isEmpty()) continue;
+
                 if (line.startsWith("data: ")) {
-                    QByteArray data = line.mid(6);
-                    if (data == "[DONE]") {
-                        return;
-                    }
+                    sseFound = true;
+                    QByteArray data = line.mid(6).trimmed();
+                    if (data == "[DONE]") continue;
 
                     QJsonDocument doc = QJsonDocument::fromJson(data);
-                    if (doc.isNull()) continue;
+                    if (doc.isNull()) {
+                        if (!data.isEmpty()) {
+                            emit partialResponse("\n**System Notification:** " + QString::fromUtf8(data) + "\n");
+                        }
+                        continue;
+                    }
 
                     QJsonObject obj = doc.object();
                     QJsonArray choices = obj["choices"].toArray();
@@ -70,8 +90,6 @@ void OpenAIProvider::sendChatRequest(const QJsonArray &messages, bool stream, co
                         if (delta.contains("reasoning_content")) {
                             QString reasoning = delta["reasoning_content"].toString();
                             if (!reasoning.isEmpty()) {
-                                // For now, we emit it via partialResponse but we might want a separate signal
-                                // Or we can wrap it in markers
                                 emit partialResponse("<thought>\n" + reasoning + "\n</thought>\n");
                             }
                         }
@@ -80,7 +98,6 @@ void OpenAIProvider::sendChatRequest(const QJsonArray &messages, bool stream, co
                             QJsonArray toolCalls = delta["tool_calls"].toArray();
                             for (const auto &tcVal : toolCalls) {
                                 QJsonObject tc = tcVal.toObject();
-                                // LM-Studio and some others might omit index if there's only one tool call
                                 int index = 0;
                                 if (tc.contains("index")) {
                                     index = tc["index"].toInt();
@@ -119,12 +136,25 @@ void OpenAIProvider::sendChatRequest(const QJsonArray &messages, bool stream, co
                     }
                 }
             }
+
+            if (!sseFound && !buffer.isEmpty()) {
+                // If we got data but none of it looked like SSE, it might be a raw error message
+                // even if status code was 200.
+                if (buffer.contains("Unexpected endpoint") || buffer.contains("error")) {
+                     emit partialResponse("\n**System Notification:** " + QString::fromUtf8(buffer).trimmed() + "\n");
+                }
+            }
         });
     }
 
     connect(reply, &QNetworkReply::finished, this, [this, reply, stream]{
         if (reply->error() != QNetworkReply::NoError) {
-            emit errorOccurred(reply->errorString());
+            QByteArray errorData = reply->readAll();
+            QString errorMsg = reply->errorString();
+            if (!errorData.isEmpty()) {
+                errorMsg += " - " + QString::fromUtf8(errorData);
+            }
+            emit errorOccurred(errorMsg);
             m_ongoingToolCalls.clear();
             reply->deleteLater();
             return;

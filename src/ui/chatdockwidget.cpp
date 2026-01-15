@@ -80,6 +80,7 @@ ChatDockWidget::ChatDockWidget(QWidget *parent)
     });
 
     connect(llmManager, &LLMManager::streamFinished, this, [this](){
+        stopTypingAnimation();
         currentAssistantBubble = nullptr;
     });
 
@@ -96,7 +97,11 @@ ChatDockWidget::ChatDockWidget(QWidget *parent)
 
     connect(llmManager, &LLMManager::errorOccurred, this, [this](const QString &t){
         stopTypingAnimation();
-        addAssistantMessage("Error: " + t);
+        auto bubble = new ChatMessageWidget(ChatMessageWidget::Error, "**Error:** " + t);
+        auto wrapper = new QHBoxLayout;
+        wrapper->addWidget(bubble);
+        wrapper->addStretch();
+        chatLayout->insertLayout(chatLayout->count()-1, wrapper);
         currentAssistantBubble = nullptr;
     });
 }

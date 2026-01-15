@@ -11,7 +11,7 @@ class ChatMessageWidget : public QFrame
 {
     Q_OBJECT
 public:
-    enum Role { User, Assistant };
+    enum Role { User, Assistant, Error };
 
     ChatMessageWidget(Role role, const QString &text, QWidget *parent = nullptr);
 

@@ -58,9 +58,18 @@ void ClaudeProvider::sendChatRequest(const QJsonArray &messages, bool stream, co
 
     if (stream) {
         connect(reply, &QNetworkReply::readyRead, this, [this, reply]() {
-            while (reply->canReadLine()) {
-                QByteArray line = reply->readLine().trimmed();
+            if (reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() >= 400) return;
+
+            QByteArray buffer = reply->readAll();
+            QList<QByteArray> lines = buffer.split('\n');
+            bool sseFound = false;
+
+            for (QByteArray line : lines) {
+                line = line.trimmed();
+                if (line.isEmpty()) continue;
+
                 if (line.startsWith("data: ")) {
+                    sseFound = true;
                     QByteArray data = line.mid(6);
                     QJsonDocument doc = QJsonDocument::fromJson(data);
                     QJsonObject obj = doc.object();
@@ -76,12 +85,23 @@ void ClaudeProvider::sendChatRequest(const QJsonArray &messages, bool stream, co
                     }
                 }
             }
+
+            if (!sseFound && !buffer.isEmpty()) {
+                if (buffer.contains("error")) {
+                     emit partialResponse("\n**System Notification:** " + QString::fromUtf8(buffer).trimmed() + "\n");
+                }
+            }
         });
     }
 
     connect(reply, &QNetworkReply::finished, this, [this, reply, stream]{
         if (reply->error() != QNetworkReply::NoError) {
-            emit errorOccurred(reply->errorString());
+            QByteArray errorData = reply->readAll();
+            QString errorMsg = reply->errorString();
+            if (!errorData.isEmpty()) {
+                errorMsg += " - " + QString::fromUtf8(errorData);
+            }
+            emit errorOccurred(errorMsg);
             reply->deleteLater();
             return;
         }

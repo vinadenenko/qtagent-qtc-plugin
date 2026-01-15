@@ -9,9 +9,15 @@ ChatMessageWidget::ChatMessageWidget(Role role, const QString &text, QWidget *pa
     : QFrame(parent), messageText(text)
 {
     setObjectName("ChatBubble");
-    setStyleSheet(role == User
-                      ? "#ChatBubble { background:#2d3b55; border-radius:8px; padding:6px; }"
-                      : "#ChatBubble { background:#2b2b2b; border-radius:8px; padding:6px; }");
+    QString style;
+    if (role == User)
+        style = "#ChatBubble { background:#2d3b55; border-radius:8px; padding:6px; }";
+    else if (role == Error)
+        style = "#ChatBubble { background:#552d2d; border: 1px solid #ff4444; border-radius:8px; padding:6px; }";
+    else
+        style = "#ChatBubble { background:#2b2b2b; border-radius:8px; padding:6px; }";
+
+    setStyleSheet(style);
 
     textBrowser = new QTextBrowser();
     textBrowser->setOpenExternalLinks(true);
