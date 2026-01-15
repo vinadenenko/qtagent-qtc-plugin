@@ -75,6 +75,27 @@ void LLMManager::sendChatRequest(const QString &prompt)
                                "Wait for the tool output before providing information based on a file.";
         
         if (m_mcpServer) {
+            QString projectPath;
+            auto projectContext = m_mcpServer->readResource("file://project");
+            QJsonArray projectContents = projectContext["contents"].toArray();
+            if (!projectContents.isEmpty()) {
+                projectPath = projectContents[0].toObject()["text"].toString();
+                if (!projectPath.isEmpty()) {
+                    systemPrompt += "\n\nProject root: " + projectPath;
+                    
+                    // List top-level directory to give the AI an idea of the project structure
+                    QJsonObject listResult = m_mcpServer->callTool("list_directory", {{"path", projectPath}});
+                    if (listResult.contains("files")) {
+                        systemPrompt += "\n\nProject structure (root):\n";
+                        QJsonArray files = listResult["files"].toArray();
+                        for (const auto &fileVal : files) {
+                            QJsonObject fileObj = fileVal.toObject();
+                            systemPrompt += "- " + fileObj["name"].toString() + " (" + fileObj["type"].toString() + ")\n";
+                        }
+                    }
+                }
+            }
+
             auto context = m_mcpServer->readResource("file://current");
             QJsonArray contents = context["contents"].toArray();
             if (!contents.isEmpty()) {

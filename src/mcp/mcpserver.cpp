@@ -254,6 +254,7 @@ QJsonObject MCPServer::callTool(const QString &name, const QJsonObject &argument
     
     if (name == "read_file") {
         QString path = arguments["path"].toString();
+        path = m_editorManager->resolvePath(path);
         QString content;
         if (m_editorManager->readFile(path, content)) {
             result["content"] = content;
@@ -262,6 +263,7 @@ QJsonObject MCPServer::callTool(const QString &name, const QJsonObject &argument
         }
     } else if (name == "write_file") {
         QString path = arguments["path"].toString();
+        path = m_editorManager->resolvePath(path);
         QString content = arguments["content"].toString();
         if (m_editorManager->writeFile(path, content)) {
             result["success"] = true;
@@ -270,6 +272,7 @@ QJsonObject MCPServer::callTool(const QString &name, const QJsonObject &argument
         }
     } else if (name == "create_file") {
         QString path = arguments["path"].toString();
+        path = m_editorManager->resolvePath(path);
         QString content = arguments["content"].toString();
         if (m_editorManager->createFile(path, content)) {
             result["success"] = true;
@@ -294,6 +297,7 @@ QJsonObject MCPServer::callTool(const QString &name, const QJsonObject &argument
         result["context"] = contextJson;
     } else if (name == "delete_file") {
         QString path = arguments["path"].toString();
+        path = m_editorManager->resolvePath(path);
         if (m_editorManager->deleteFile(path)) {
             result["success"] = true;
         } else {
@@ -301,6 +305,7 @@ QJsonObject MCPServer::callTool(const QString &name, const QJsonObject &argument
         }
     } else if (name == "list_directory") {
         QString path = arguments["path"].toString();
+        path = m_editorManager->resolvePath(path);
         if (path.isEmpty()) path = m_editorManager->getProjectPath();
         
         QDir dir(path);

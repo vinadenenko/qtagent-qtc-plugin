@@ -62,6 +62,32 @@ ChatDockWidget::ChatDockWidget(QWidget *parent)
     auto mcpServer = new MCPServer(editorManager, this);
     llmManager->setMCPServer(mcpServer);
 
+    // New conversation button
+    auto clearButton = new QPushButton("New Chat");
+    bottomLayout->insertWidget(0, clearButton);
+    connect(clearButton, &QPushButton::clicked, this, [this](){
+        llmManager->clearHistory();
+        
+        // Remove all bubbles from UI
+        QLayoutItem *child;
+        while ((child = chatLayout->takeAt(0)) != nullptr) {
+            if (child->layout()) {
+                // It's a wrapper layout
+                QLayoutItem *wrapperChild;
+                while ((wrapperChild = child->layout()->takeAt(0)) != nullptr) {
+                    if (wrapperChild->widget()) delete wrapperChild->widget();
+                    delete wrapperChild;
+                }
+                delete child->layout();
+            } else if (child->widget()) {
+                delete child->widget();
+            }
+            delete child;
+        }
+        chatLayout->addStretch();
+        currentAssistantBubble = nullptr;
+    });
+
     initProvider();
 
     connect(llmManager, &LLMManager::responseReady, this, [this](const QString &t){

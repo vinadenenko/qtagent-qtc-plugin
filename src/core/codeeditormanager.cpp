@@ -234,17 +234,29 @@ QString CodeEditorManager::getProjectPath() const
     
     auto currentProject = projectManager->startupProject();
     if (!currentProject) {
+        // If no startup project, try the first project
+        auto projects = projectManager->projects();
+        if (!projects.isEmpty()) {
+            currentProject = projects.first();
+        }
+    }
+
+    if (!currentProject) {
         return QString();
     }
     
-    return currentProject->projectDirectory().toUrlishString();
+    return currentProject->projectDirectory().toString();
 }
 
 QString CodeEditorManager::resolvePath(const QString &relativePath) const
 {
+    if (QFileInfo(relativePath).isAbsolute()) {
+        return relativePath;
+    }
+
     QString projectPath = getProjectPath();
     if (!projectPath.isEmpty()) {
-        return QDir(projectPath).filePath(relativePath);
+        return QDir(projectPath).absoluteFilePath(relativePath);
     }
     
     return relativePath;
