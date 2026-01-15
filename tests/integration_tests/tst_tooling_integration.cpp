@@ -35,8 +35,8 @@ private slots:
         m_provider = new OpenAIProvider(this);
         m_provider->setBaseUrl("http://192.168.56.1:1234/v1");
         // m_provider->setModel("local-model"); // Use whatever is configured or a generic name
-        // m_provider->setModel("qwen3-8b-deepseek-v3.2-speciale-distill"); // As per user logs
-        m_provider->setModel("qwen3-14b-claude-sonnet-4.5-reasoning-distill");
+        m_provider->setModel("qwen3-8b-deepseek-v3.2-speciale-distill");
+        // m_provider->setModel("qwen3-14b-claude-sonnet-4.5-reasoning-distill");
 
         m_mockEditor = new MockEditorManager();
         m_mcpServer = new MCPServer(m_mockEditor, this);
