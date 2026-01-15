@@ -16,7 +16,12 @@ void ClaudeProvider::setApiKey(const QString &key) { apiKey = key; }
 
 void ClaudeProvider::sendChatRequest(const QJsonArray &messages, bool stream, const QJsonArray &tools)
 {
-    QUrl url(baseUrl + "/messages");
+    QString fullUrl = baseUrl;
+    if (!fullUrl.endsWith("/messages")) {
+        if (!fullUrl.endsWith("/")) fullUrl += "/";
+        fullUrl += "messages";
+    }
+    QUrl url(fullUrl);
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setRawHeader("x-api-key", apiKey.toUtf8());

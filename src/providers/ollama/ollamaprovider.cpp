@@ -28,7 +28,13 @@ void OllamaProvider::setModel(const QString &m)
 
 void OllamaProvider::sendChatRequest(const QJsonArray &messages, bool stream, const QJsonArray &tools)
 {
-    QUrl url(baseUrl + "/v1/chat/completions");
+    QString fullUrl = baseUrl;
+    if (!fullUrl.endsWith("/v1/chat/completions") && !fullUrl.endsWith("/api/chat")) {
+        // Default to OpenAI-compatible endpoint if not specified
+        if (!fullUrl.endsWith("/")) fullUrl += "/";
+        fullUrl += "v1/chat/completions";
+    }
+    QUrl url(fullUrl);
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 

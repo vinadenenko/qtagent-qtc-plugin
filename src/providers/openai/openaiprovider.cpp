@@ -19,7 +19,12 @@ void OpenAIProvider::setApiKey(const QString &key) { apiKey = key; }
 
 void OpenAIProvider::sendChatRequest(const QJsonArray &messages, bool stream, const QJsonArray &tools)
 {
-    QUrl url(baseUrl + "/chat/completions");
+    QString fullUrl = baseUrl;
+    if (!fullUrl.endsWith("/chat/completions")) {
+        if (!fullUrl.endsWith("/")) fullUrl += "/";
+        fullUrl += "chat/completions";
+    }
+    QUrl url(fullUrl);
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     if (!apiKey.isEmpty()) {

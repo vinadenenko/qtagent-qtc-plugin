@@ -46,9 +46,10 @@ The final version of the plugin should work like continue.dev, JetBrains AI assi
 *   **Tool Call Visibility:** Show when the AI is "thinking" or "calling a tool" with expandable logs (for example, like Junie does like 'file was read and it's content revealed, file was edited with adding X functionalities etc).
 
 ### 3.2 Interaction Workflow
-*   **Diff View:** Instead of just "Insert/Replace", show a side-by-side diff before applying changes.
-*   **Multi-file Patching:** Support applying changes that span multiple files in one go.
-*   **Inline Edits (Ghost Text):** (Long term) Implement inline suggestions similar to Copilot.
+*   **Diff View:** Instead of just "Insert/Replace", show a side-by-side diff (opens with button like it Junie assistant).
+*   **Have a button to 'revert' changes made with assistant.
+*   **Multi-file Patching:** Support applying changes that span multiple files in one go [SKIP].
+*   **Inline Edits (Ghost Text):** (Long term) Implement inline suggestions similar to Copilot [SKIP].
 
 ---
 

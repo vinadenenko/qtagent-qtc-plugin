@@ -84,18 +84,14 @@ ChatDockWidget::ChatDockWidget(QWidget *parent)
     });
 
     connect(llmManager, &LLMManager::toolCallStarted, this, [this](const QString &name){
-        addAssistantMessage("🔧 Calling tool: **" + name + "**...");
+        addAssistantMessage("🔧 *Calling tool:* **" + name + "**...");
+        currentAssistantBubble = nullptr; // Next message should be a new bubble or the result
     });
 
     connect(llmManager, &LLMManager::toolCallFinished, this, [this](const QString &name, const QString &result){
-        if (currentAssistantBubble) {
-            QString currentText = currentAssistantBubble->text();
-            currentText += "\n\n✅ Tool **" + name + "** finished.";
-            currentAssistantBubble->setText(currentText);
-            currentAssistantBubble = nullptr;
-        } else {
-            addAssistantMessage("✅ Tool **" + name + "** finished.");
-        }
+        // Optional: you could show the result in a collapsed way
+        // addAssistantMessage("✅ *Tool* **" + name + "** *finished.*");
+        currentAssistantBubble = nullptr;
     });
 
     connect(llmManager, &LLMManager::errorOccurred, this, [this](const QString &t){
@@ -183,11 +179,13 @@ void ChatDockWidget::addAssistantMessage(const QString &text)
     });
 
     connect(bubble, &ChatMessageWidget::insertRequested, this, [=](const QString &t){
-        QApplication::clipboard()->setText(t);
+        CodeEditorManager cem;
+        cem.insertText(t);
     });
 
     connect(bubble, &ChatMessageWidget::replaceRequested, this, [=](const QString &t){
-        QApplication::clipboard()->setText(t);
+        CodeEditorManager cem;
+        cem.replaceSelectedText(t);
     });
 
     auto wrapper = new QHBoxLayout;

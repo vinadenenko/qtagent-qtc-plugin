@@ -19,10 +19,15 @@ LLMSettings::LLMSettings()
 void LLMSettings::load()
 {
     QSettings s;
-    baseUrl_      = s.value("LLM/baseUrl", "http://localhost:11434").toString();
+    providerType_ = s.value("LLM/providerType", "Ollama").toString();
+    
+    QString defaultUrl = "http://localhost:11434";
+    if (providerType_ == "OpenAI") defaultUrl = "https://api.openai.com/v1";
+    else if (providerType_ == "Claude") defaultUrl = "https://api.anthropic.com/v1";
+
+    baseUrl_      = s.value("LLM/baseUrl", defaultUrl).toString();
     model_        = s.value("LLM/model", "llama3").toString();
     apiKey_       = s.value("LLM/apiKey", "").toString();
-    providerType_ = s.value("LLM/providerType", "Ollama").toString();
 }
 
 void LLMSettings::save()

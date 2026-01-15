@@ -4,7 +4,7 @@
 
 #include <QFrame>
 
-class QLabel;
+class QTextBrowser;
 class QPushButton;
 
 class ChatMessageWidget : public QFrame
@@ -24,7 +24,9 @@ signals:
     void replaceRequested(const QString &text);
 
 private:
+    void updateDisplay();
+
     QString messageText;
-    QLabel *textLabel;
+    QTextBrowser *textBrowser;
 };
 #endif // CHATMESSAGEWIDGET_H
